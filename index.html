@@ -179,6 +179,81 @@
         .login-button:hover {
             background-color: #357ae8;
         }
+
+        /* Excel-like Table Styling for POS */
+        .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .excel-table th, .excel-table td {
+            border: 1px solid #bdc3c7;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .excel-table th {
+            background-color: #34495e;
+            color: #ecf0f1;
+        }
+
+        .suggestions {
+            border: 1px solid #ccc;
+            max-height: 150px;
+            overflow-y: auto;
+            position: absolute;
+            background-color: #fff;
+            width: calc(100% - 40px);
+            z-index: 100;
+        }
+
+        .suggestion-item {
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .suggestion-item:hover {
+            background-color: #f1f1f1;
+        }
+
+        /* Popup Modal */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 2000; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.4); 
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%; 
+            border-radius: 5px;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
     </style>
 </head>
 <body>
@@ -195,7 +270,7 @@
     <!-- Sidebar Navigation -->
     <div class="sidebar" id="sidebar">
         <h2>Pharmacy ERP</h2>
-        <a onclick="showModule('sales')">Sales and Billing (POS)</a>
+        <a onclick="showModule('pos')">Sales and Billing (POS)</a>
         <a onclick="showModule('inventory')">Inventory Management</a>
         <a onclick="showModule('crm')">Customer Management (CRM)</a>
         <a onclick="showModule('purchase')">Purchase & Vendor Management</a>
@@ -213,40 +288,69 @@
         <div id="notification" class="notification"></div>
 
         <!-- Sales and Billing Module (POS) -->
-        <div id="sales" class="module active">
+        <div id="pos" class="module active">
             <h2>Sales and Billing (POS)</h2>
-            <button onclick="toggleVisibility('salesForm')">New Sale</button>
-            <div id="salesForm" style="display:none;">
-                <form id="addSalesForm">
-                    <input type="text" id="saleMedicineName" placeholder="Medicine Name" required>
-                    <input type="number" id="saleQuantity" placeholder="Quantity" min="1" required>
-                    <input type="text" id="saleBarcode" placeholder="Barcode/QR Code">
-                    <select id="paymentMethod" required>
-                        <option value="">Select Payment Method</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Credit Card">Credit Card</option>
-                        <option value="UPI">UPI</option>
-                        <option value="Digital Wallet">Digital Wallet</option>
-                    </select>
-                    <input type="text" id="salePrescription" placeholder="Prescription ID (if any)">
-                    <textarea id="saleDiscount" placeholder="Discount Details"></textarea>
-                    <button type="submit">Process Sale</button>
-                </form>
+            <button onclick="toggleVisibility('posTable')">New Sale</button>
+            <div id="posTable" style="display:none; position: relative;">
+                <!-- Excel-like Table for POS -->
+                <table class="excel-table" id="posExcelTable">
+                    <thead>
+                        <tr>
+                            <th>Medicine Name</th>
+                            <th>Strips</th>
+                            <th>Tablets</th>
+                            <th>Quantity</th>
+                            <th>Total Price ($)</th>
+                            <th>Tax ($)</th>
+                            <th>Payment Method</th>
+                            <th>Prescription ID</th>
+                            <th>Discount Details</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="position: relative;">
+                                <input type="text" class="medicine-name" placeholder="Enter Medicine Name" onkeyup="suggestMedicines(this)">
+                                <div class="suggestions" id="suggestions"></div>
+                            </td>
+                            <td><input type="number" class="strip-qty" min="0" value="0" onchange="updateQuantity(this)"></td>
+                            <td><input type="number" class="tablet-qty" min="0" value="0" onchange="updateQuantity(this)"></td>
+                            <td><span class="total-qty">0</span></td>
+                            <td><span class="total-price">0.00</span></td>
+                            <td><span class="tax">0.00</span></td>
+                            <td>
+                                <select class="payment-method" onchange="updateTaxAndPrice(this)">
+                                    <option value="">Select Payment Method</option>
+                                    <option value="Cash">Cash</option>
+                                    <option value="Credit Card">Credit Card</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="Digital Wallet">Digital Wallet</option>
+                                </select>
+                            </td>
+                            <td><input type="text" class="prescription-id" placeholder="Prescription ID (if any)"></td>
+                            <td><input type="text" class="discount-details" placeholder="Discount Details"></td>
+                            <td><button onclick="processSale(this)">Process</button></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
             <table>
                 <thead>
                     <tr>
                         <th>Sale ID</th>
                         <th>Medicine Name</th>
-                        <th>Quantity</th>
+                        <th>Strips</th>
+                        <th>Tablets</th>
+                        <th>Total Quantity</th>
                         <th>Total Price ($)</th>
                         <th>Tax ($)</th>
                         <th>Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="salesTableBody">
-                    <!-- Sales records will be populated here -->
+                <tbody id="posTableBody">
+                    <!-- POS sales records will be populated here -->
                 </tbody>
             </table>
         </div>
@@ -259,6 +363,7 @@
                 <form id="addInventoryForm">
                     <input type="text" id="medicineName" placeholder="Medicine Name" required>
                     <input type="number" id="quantity" placeholder="Quantity" min="1" required>
+                    <input type="number" id="tabletsPerStrip" placeholder="Tablets per Strip" min="1" required>
                     <input type="text" id="batchNumber" placeholder="Batch Number" required>
                     <input type="date" id="expiryDate" required>
                     <select id="therapeuticClass" required>
@@ -276,6 +381,7 @@
                     <tr>
                         <th>Medicine Name</th>
                         <th>Quantity</th>
+                        <th>Tablets per Strip</th>
                         <th>Batch Number</th>
                         <th>Expiry Date</th>
                         <th>Therapeutic Class</th>
@@ -359,6 +465,10 @@
             <h2>Accounting & Finance</h2>
             <p>Integration with POS for daily sales tracking, automated GST/VAT filing, financial reports, and more.</p>
             <!-- Additional forms and tables can be added here -->
+
+            <!-- Google Drive Backup and Restore Buttons -->
+            <button onclick="saveDataToDrive()">Backup Data to Google Drive</button>
+            <button onclick="loadDataFromDrive()">Restore Data from Google Drive</button>
         </div>
 
         <!-- Reporting & Analytics Module -->
@@ -382,13 +492,34 @@
             <!-- Additional forms and tables can be added here -->
         </div>
 
+        <!-- Popup Modal for Adding New Product -->
+        <div id="addProductModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2>Add New Product</h2>
+                <form id="addNewProductForm">
+                    <input type="text" id="newMedicineName" placeholder="Medicine Name" required>
+                    <input type="number" id="newQuantity" placeholder="Quantity" min="1" required>
+                    <input type="number" id="newTabletsPerStrip" placeholder="Tablets per Strip" min="1" required>
+                    <input type="text" id="newBatchNumber" placeholder="Batch Number" required>
+                    <input type="date" id="newExpiryDate" required>
+                    <select id="newTherapeuticClass" required>
+                        <option value="">Select Therapeutic Class</option>
+                        <option value="Analgesics">Analgesics</option>
+                        <option value="Antibiotics">Antibiotics</option>
+                        <option value="Cardiovascular">Cardiovascular</option>
+                        <!-- Add more classes as needed -->
+                    </select>
+                    <button type="submit">Add Product</button>
+                </form>
+            </div>
+        </div>
+
     </div>
 
     <!-- Firebase SDKs -->
     <!-- Firebase App (the core Firebase SDK) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <!-- Firebase Firestore -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <!-- Firebase Authentication -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <!-- Google API Client Library -->
@@ -398,24 +529,23 @@
     <script>
         // Firebase configuration
         const firebaseConfig = {
- apiKey: "AIzaSyBJLp1AAqdEVxs-eZBUPPgNfK-SjOuLpz0",
+            apiKey: "AIzaSyBJLp1AAqdEVxs-eZBUPPgNfK-SjOuLpz0",
   authDomain: "sms-verification-ea68f.firebaseapp.com",
   projectId: "sms-verification-ea68f",
   storageBucket: "sms-verification-ea68f.appspot.com",
   messagingSenderId: "977038537918",
   appId: "1:977038537918:web:46761c2376a03978851aef",
   measurementId: "G-ZE4HSES1R6"
+        
         };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
         const auth = firebase.auth();
 
-        // Google API Client ID
+        // Google API Client ID and API Key
         const CLIENT_ID = '435268131943-eg8fv9chddsdkardf7t7rjqhpeqqrsa0.apps.googleusercontent.com';
         const API_KEY = 'AIzaSyA7esonB2-fACyK_vwx80uvBJ-HVyTukg0';
-        const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
         const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
         // Notification Function
@@ -434,7 +564,6 @@
             gapi.client.init({
                 apiKey: API_KEY,
                 clientId: CLIENT_ID,
-                discoveryDocs: DISCOVERY_DOCS,
                 scope: SCOPES
             }).then(() => {
                 console.log("Google API Client Initialized.");
@@ -467,6 +596,9 @@
                     document.getElementById('sidebar').style.display = 'block';
                     document.getElementById('mainContent').style.display = 'block';
                     showNotification("Successfully signed in!");
+
+                    // Load existing data from Google Drive
+                    loadDataFromDrive();
                 }).catch((error) => {
                     console.error("Error during sign in:", error);
                     showNotification("Error during sign in.", true);
@@ -499,608 +631,763 @@
             });
         }
 
-        // Toggle Form Visibility
-        function toggleVisibility(formId) {
-            const form = document.getElementById(formId);
-            if (form.style.display === "none" || form.style.display === "") {
-                form.style.display = "block";
+        // Toggle Form/Table Visibility
+        function toggleVisibility(elementId) {
+            const element = document.getElementById(elementId);
+            if (element.style.display === "none" || element.style.display === "") {
+                element.style.display = "block";
             } else {
-                form.style.display = "none";
+                element.style.display = "none";
             }
         }
 
-        /* ------------------------- Sales and Billing (POS) ------------------------- */
+        /* ------------------------- Google Drive Integration ------------------------- */
 
-        // Add Sale Record
-        const addSalesForm = document.getElementById('addSalesForm');
-        addSalesForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const medicineName = document.getElementById('saleMedicineName').value;
-            const quantity = parseInt(document.getElementById('saleQuantity').value);
-            const barcode = document.getElementById('saleBarcode').value || "N/A";
-            const paymentMethod = document.getElementById('paymentMethod').value;
-            const prescription = document.getElementById('salePrescription').value || "N/A";
-            const discountDetails = document.getElementById('saleDiscount').value || "0";
-            const saleDate = new Date().toISOString().split('T')[0];
-            const tax = calculateTax(medicineName, quantity);
-            const totalPrice = calculatePrice(medicineName, quantity) + tax;
+        // Utility function to create a file in Google Drive
+        function createFile(fileName, content) {
+            const boundary = '-------314159265358979323846';
+            const delimiter = "\r\n--" + boundary + "\r\n";
+            const close_delim = "\r\n--" + boundary + "--";
 
-            db.collection('sales').add({
-                medicineName,
-                quantity,
-                barcode,
-                paymentMethod,
-                prescription,
-                discountDetails,
-                saleDate,
-                tax,
-                totalPrice,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            })
-            .then(() => {
-                addSalesForm.reset();
-                document.getElementById('salesForm').style.display = 'none';
-                showNotification("Sale processed successfully!");
-                updateInventory(medicineName, quantity);
-            })
-            .catch(error => {
-                console.error("Error adding sale: ", error);
-                showNotification("Error processing sale.", true);
+            const metadata = {
+                'name': fileName,
+                'mimeType': 'application/json'
+            };
+
+            const base64Data = btoa(JSON.stringify(content));
+            const multipartRequestBody =
+                delimiter +
+                'Content-Type: application/json\r\n\r\n' +
+                JSON.stringify(metadata) +
+                delimiter +
+                'Content-Type: application/json\r\n\r\n' +
+                JSON.stringify(content) +
+                close_delim;
+
+            return gapi.client.request({
+                'path': '/upload/drive/v3/files',
+                'method': 'POST',
+                'params': {'uploadType': 'multipart'},
+                'headers': {
+                  'Content-Type': 'multipart/related; boundary="' + boundary + '"'
+                },
+                'body': multipartRequestBody
             });
-        });
-
-        // Calculate Price (Placeholder Logic)
-        function calculatePrice(medicineName, quantity) {
-            // Implement actual pricing logic based on medicine
-            // For demonstration, assume $5 per unit
-            return quantity * 5;
         }
 
-        // Calculate Tax (Placeholder Logic)
-        function calculateTax(medicineName, quantity) {
-            // Implement actual tax calculation based on GST rules
-            // For demonstration, assume 18% tax
-            return (quantity * 5) * 0.18;
+        // Utility function to search for a file by name
+        function searchFile(fileName) {
+            return gapi.client.drive.files.list({
+                'q': `name='${fileName}' and mimeType='application/json'`,
+                'fields': 'files(id, name)'
+            });
         }
 
-        // Update Inventory After Sale
-        function updateInventory(medicineName, quantitySold) {
-            const inventoryRef = db.collection('inventory').where('medicineName', '==', medicineName);
-            inventoryRef.get().then(querySnapshot => {
-                if (!querySnapshot.empty) {
-                    querySnapshot.forEach(doc => {
-                        const currentQty = doc.data().quantity;
-                        if (currentQty >= quantitySold) {
-                            db.collection('inventory').doc(doc.id).update({
-                                quantity: currentQty - quantitySold
-                            })
-                            .then(() => {
-                                console.log("Inventory updated successfully.");
-                            })
-                            .catch(error => {
-                                console.error("Error updating inventory: ", error);
-                            });
-                        } else {
-                            showNotification(`Insufficient stock for ${medicineName}.`, true);
-                        }
-                    });
+        // Utility function to update a file in Google Drive
+        function updateFile(fileId, content) {
+            const boundary = '-------314159265358979323846';
+            const delimiter = "\r\n--" + boundary + "\r\n";
+            const close_delim = "\r\n--" + boundary + "--";
+
+            const metadata = {
+                'name': 'pharmacy_erp_data.json',
+                'mimeType': 'application/json'
+            };
+
+            const multipartRequestBody =
+                delimiter +
+                'Content-Type: application/json\r\n\r\n' +
+                JSON.stringify(metadata) +
+                delimiter +
+                'Content-Type: application/json\r\n\r\n' +
+                JSON.stringify(content) +
+                close_delim;
+
+            return gapi.client.request({
+                'path': `/upload/drive/v3/files/${fileId}`,
+                'method': 'PATCH',
+                'params': {'uploadType': 'multipart'},
+                'headers': {
+                  'Content-Type': 'multipart/related; boundary="' + boundary + '"'
+                },
+                'body': multipartRequestBody
+            });
+        }
+
+        // Utility function to get file content
+        function getFileContent(fileId) {
+            return gapi.client.drive.files.get({
+                fileId: fileId,
+                alt: 'media'
+            });
+        }
+
+        // Save Data to Google Drive
+        async function saveDataToDrive() {
+            const data = {
+                sales: window.salesData || {},
+                inventory: window.inventoryData || {},
+                customers: window.customersData || {},
+                purchase: window.purchaseData || {}
+            };
+
+            try {
+                const searchResponse = await searchFile('pharmacy_erp_data.json');
+                if (searchResponse.result.files.length > 0) {
+                    // File exists, update it
+                    const fileId = searchResponse.result.files[0].id;
+                    await updateFile(fileId, data);
+                    showNotification("Data backed up to Google Drive successfully!");
                 } else {
-                    showNotification(`Medicine ${medicineName} not found in inventory.`, true);
+                    // File does not exist, create it
+                    await createFile('pharmacy_erp_data.json', data);
+                    showNotification("Data backed up to Google Drive successfully!");
                 }
-            });
+            } catch (error) {
+                console.error("Error saving data to Drive:", error);
+                showNotification("Error saving data to Drive.", true);
+            }
         }
 
-        // Real-time Listener for Sales
-        const salesTableBody = document.getElementById('salesTableBody');
-        db.collection('sales').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
-            salesTableBody.innerHTML = '';
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const row = document.createElement('tr');
+        // Load Data from Google Drive
+        async function loadDataFromDrive() {
+            try {
+                const searchResponse = await searchFile('pharmacy_erp_data.json');
+                if (searchResponse.result.files.length > 0) {
+                    const fileId = searchResponse.result.files[0].id;
+                    const contentResponse = await getFileContent(fileId);
+                    const data = contentResponse.result;
 
-                row.innerHTML = `
-                    <td>${doc.id}</td>
-                    <td>${data.medicineName}</td>
-                    <td>${data.quantity}</td>
-                    <td>${data.totalPrice.toFixed(2)}</td>
-                    <td>${data.tax.toFixed(2)}</td>
-                    <td>${data.saleDate}</td>
-                    <td>
-                        <button onclick="viewSale('${doc.id}')">View</button>
-                        <!-- Implement Edit/Delete if needed -->
-                    </td>
-                `;
-                salesTableBody.appendChild(row);
-            });
-        });
+                    // Load Inventory Data
+                    window.inventoryData = data.inventory || {};
+                    populateInventoryTable();
 
-        // View Sale Details
-        function viewSale(id) {
-            db.collection('sales').doc(id).get()
-            .then(doc => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    alert(`Sale Details:
-Sale ID: ${doc.id}
-Medicine Name: ${data.medicineName}
-Quantity: ${data.quantity}
-Tax: $${data.tax.toFixed(2)}
-Total Price: $${data.totalPrice.toFixed(2)}
-Payment Method: ${data.paymentMethod}
-Prescription: ${data.prescription}
-Date: ${data.saleDate}`);
+                    // Load Sales Data
+                    window.salesData = data.sales || {};
+                    populateSalesTable();
+
+                    // Load Customer Data
+                    window.customersData = data.customers || {};
+                    populateCustomerTable();
+
+                    // Load Purchase Data
+                    window.purchaseData = data.purchase || {};
+                    populatePurchaseTable();
+
+                    showNotification("Data loaded from Google Drive successfully!");
                 } else {
-                    alert("No such sale record!");
+                    showNotification("No backup file found on Drive.", true);
                 }
-            })
-            .catch(error => {
-                console.error("Error fetching sale: ", error);
-            });
+            } catch (error) {
+                console.error("Error loading data from Drive:", error);
+                showNotification("Error loading data from Drive.", true);
+            }
         }
 
         /* ------------------------- Inventory Management ---------------------------- */
+
+        // Inventory Data Structure
+        window.inventoryData = {};
 
         // Add Inventory Item
         const addInventoryForm = document.getElementById('addInventoryForm');
         addInventoryForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const medicineName = document.getElementById('medicineName').value;
+            const medicineName = document.getElementById('medicineName').value.trim();
             const quantity = parseInt(document.getElementById('quantity').value);
-            const batchNumber = document.getElementById('batchNumber').value;
+            const tabletsPerStrip = parseInt(document.getElementById('tabletsPerStrip').value);
+            const batchNumber = document.getElementById('batchNumber').value.trim();
             const expiryDate = document.getElementById('expiryDate').value;
             const therapeuticClass = document.getElementById('therapeuticClass').value;
 
-            db.collection('inventory').add({
+            const id = 'inv_' + new Date().getTime();
+
+            window.inventoryData[id] = {
                 medicineName,
                 quantity,
+                tabletsPerStrip,
                 batchNumber,
                 expiryDate,
-                therapeuticClass,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            })
-            .then(() => {
-                addInventoryForm.reset();
-                document.getElementById('inventoryForm').style.display = 'none';
-                showNotification("Inventory item added successfully!");
-            })
-            .catch(error => {
-                console.error("Error adding inventory: ", error);
-                showNotification("Error adding inventory item.", true);
-            });
+                therapeuticClass
+            };
+
+            addInventoryForm.reset();
+            document.getElementById('inventoryForm').style.display = 'none';
+            showNotification("Inventory item added successfully!");
+            populateInventoryTable();
+            saveDataToDrive();
         });
 
-        // Real-time Listener for Inventory
-        const inventoryTableBody = document.getElementById('inventoryTableBody');
-        db.collection('inventory').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        // Populate Inventory Table
+        function populateInventoryTable() {
+            const inventoryTableBody = document.getElementById('inventoryTableBody');
             inventoryTableBody.innerHTML = '';
-            snapshot.forEach(doc => {
-                const data = doc.data();
+            for (const id in window.inventoryData) {
+                const data = window.inventoryData[id];
                 const row = document.createElement('tr');
 
                 row.innerHTML = `
                     <td>${data.medicineName}</td>
                     <td>${data.quantity}</td>
+                    <td>${data.tabletsPerStrip}</td>
                     <td>${data.batchNumber}</td>
                     <td>${data.expiryDate}</td>
                     <td>${data.therapeuticClass}</td>
                     <td>
-                        <button onclick="editInventory('${doc.id}', '${data.medicineName}', ${data.quantity}, '${data.batchNumber}', '${data.expiryDate}', '${data.therapeuticClass}')">Edit</button>
-                        <button onclick="deleteInventory('${doc.id}')">Delete</button>
+                        <button onclick="editInventory('${id}')">Edit</button>
+                        <button onclick="deleteInventory('${id}')">Delete</button>
                     </td>
                 `;
                 inventoryTableBody.appendChild(row);
-            });
-        });
+            }
+        }
 
         // Edit Inventory Item
-        function editInventory(id, medicineName, quantity, batchNumber, expiryDate, therapeuticClass) {
-            const newMedicineName = prompt("Enter new Medicine Name:", medicineName);
+        function editInventory(id) {
+            const data = window.inventoryData[id];
+            const newMedicineName = prompt("Enter new Medicine Name:", data.medicineName);
             if (newMedicineName === null) return; // Cancelled
-            const newQuantity = prompt("Enter new Quantity:", quantity);
+            const newQuantity = prompt("Enter new Quantity:", data.quantity);
             if (newQuantity === null || isNaN(newQuantity) || newQuantity < 0) {
                 showNotification("Invalid quantity entered.", true);
                 return;
             }
-            const newBatchNumber = prompt("Enter new Batch Number:", batchNumber);
+            const newTabletsPerStrip = prompt("Enter new Tablets per Strip:", data.tabletsPerStrip);
+            if (newTabletsPerStrip === null || isNaN(newTabletsPerStrip) || newTabletsPerStrip < 1) {
+                showNotification("Invalid tablets per strip entered.", true);
+                return;
+            }
+            const newBatchNumber = prompt("Enter new Batch Number:", data.batchNumber);
             if (newBatchNumber === null) return;
-            const newExpiryDate = prompt("Enter new Expiry Date (YYYY-MM-DD):", expiryDate);
+            const newExpiryDate = prompt("Enter new Expiry Date (YYYY-MM-DD):", data.expiryDate);
             if (newExpiryDate === null) return;
-            const newTherapeuticClass = prompt("Enter new Therapeutic Class:", therapeuticClass);
+            const newTherapeuticClass = prompt("Enter new Therapeutic Class:", data.therapeuticClass);
             if (newTherapeuticClass === null) return;
 
-            db.collection('inventory').doc(id).update({
-                medicineName: newMedicineName,
+            window.inventoryData[id] = {
+                medicineName: newMedicineName.trim(),
                 quantity: parseInt(newQuantity),
-                batchNumber: newBatchNumber,
+                tabletsPerStrip: parseInt(newTabletsPerStrip),
+                batchNumber: newBatchNumber.trim(),
                 expiryDate: newExpiryDate,
-                therapeuticClass: newTherapeuticClass
-            })
-            .then(() => {
-                showNotification("Inventory updated successfully!");
-            })
-            .catch(error => {
-                console.error("Error updating inventory: ", error);
-                showNotification("Error updating inventory.", true);
-            });
+                therapeuticClass: newTherapeuticClass.trim()
+            };
+
+            showNotification("Inventory updated successfully!");
+            populateInventoryTable();
+            saveDataToDrive();
         }
 
         // Delete Inventory Item
         function deleteInventory(id) {
             if(confirm("Are you sure you want to delete this inventory item?")) {
-                db.collection('inventory').doc(id).delete()
-                .then(() => {
-                    showNotification("Inventory item deleted successfully!");
-                })
-                .catch(error => {
-                    console.error("Error deleting inventory item: ", error);
-                    showNotification("Error deleting inventory item.", true);
-                });
+                delete window.inventoryData[id];
+                showNotification("Inventory item deleted successfully!");
+                populateInventoryTable();
+                saveDataToDrive();
+            }
+        }
+
+        /* ------------------------- Sales and Billing (POS) ------------------------- */
+
+        // Sales Data Structure
+        window.salesData = {};
+
+        // Populate Sales Table
+        function populateSalesTable() {
+            const posTableBody = document.getElementById('posTableBody');
+            posTableBody.innerHTML = '';
+            for (const id in window.salesData) {
+                const data = window.salesData[id];
+                const row = document.createElement('tr');
+
+                row.innerHTML = `
+                    <td>${id}</td>
+                    <td>${data.medicineName}</td>
+                    <td>${data.strips}</td>
+                    <td>${data.tablets}</td>
+                    <td>${data.totalQuantity}</td>
+                    <td>${data.totalPrice.toFixed(2)}</td>
+                    <td>${data.tax.toFixed(2)}</td>
+                    <td>${data.saleDate}</td>
+                    <td>
+                        <button onclick="viewSale('${id}')">View</button>
+                        <!-- Implement Edit/Delete if needed -->
+                    </td>
+                `;
+                posTableBody.appendChild(row);
+            }
+        }
+
+        // Process Sale from POS Table
+        function processSale(button) {
+            const row = button.parentElement.parentElement;
+            const medicineName = row.querySelector('.medicine-name').value.trim();
+            const strips = parseInt(row.querySelector('.strip-qty').value) || 0;
+            const tablets = parseInt(row.querySelector('.tablet-qty').value) || 0;
+            const totalQuantity = (strips * (getTabletsPerStrip(medicineName)) ) + tablets;
+            const paymentMethod = row.querySelector('.payment-method').value;
+            const prescriptionId = row.querySelector('.prescription-id').value.trim() || "N/A";
+            const discountDetails = row.querySelector('.discount-details').value.trim() || "0";
+
+            if (medicineName === "" || (strips === 0 && tablets === 0) || paymentMethod === "") {
+                showNotification("Please fill in all required fields.", true);
+                return;
+            }
+
+            // Calculate Price and Tax
+            const unitPrice = getUnitPrice(medicineName); // Implement getUnitPrice
+            const totalPrice = totalQuantity * unitPrice;
+            const tax = totalPrice * 0.18; // Assuming 18% tax
+
+            const saleDate = new Date().toLocaleDateString();
+
+            const id = 'sale_' + new Date().getTime();
+
+            window.salesData[id] = {
+                medicineName,
+                strips,
+                tablets,
+                totalQuantity,
+                totalPrice,
+                tax,
+                paymentMethod,
+                prescriptionId,
+                discountDetails,
+                saleDate
+            };
+
+            // Update Inventory
+            if(window.inventoryData){
+                for (const invId in window.inventoryData) {
+                    if(window.inventoryData[invId].medicineName.toLowerCase() === medicineName.toLowerCase()){
+                        window.inventoryData[invId].quantity -= totalQuantity;
+                        break;
+                    }
+                }
+            }
+
+            // Reset POS Table Row
+            row.querySelector('.medicine-name').value = "";
+            row.querySelector('.strip-qty').value = 0;
+            row.querySelector('.tablet-qty').value = 0;
+            row.querySelector('.total-qty').textContent = "0";
+            row.querySelector('.total-price').textContent = "0.00";
+            row.querySelector('.tax').textContent = "0.00";
+            row.querySelector('.payment-method').value = "";
+            row.querySelector('.prescription-id').value = "";
+            row.querySelector('.discount-details').value = "";
+
+            showNotification("Sale processed successfully!");
+            populateSalesTable();
+            populateInventoryTable();
+            saveDataToDrive();
+        }
+
+        // Get Tablets Per Strip from Inventory
+        function getTabletsPerStrip(medicineName) {
+            for (const id in window.inventoryData) {
+                if(window.inventoryData[id].medicineName.toLowerCase() === medicineName.toLowerCase()){
+                    return window.inventoryData[id].tabletsPerStrip;
+                }
+            }
+            return 10; // Default value if not found
+        }
+
+        // Placeholder function for unit price (implement actual pricing logic)
+        function getUnitPrice(medicineName) {
+            // For demonstration, assume $5 per tablet
+            return 5;
+        }
+
+        // View Sale Details
+        function viewSale(id) {
+            const data = window.salesData[id];
+            if(data){
+                alert(`Sale Details:
+    Sale ID: ${id}
+    Medicine Name: ${data.medicineName}
+    Strips: ${data.strips}
+    Tablets: ${data.tablets}
+    Total Quantity: ${data.totalQuantity}
+    Total Price: $${data.totalPrice.toFixed(2)}
+    Tax: $${data.tax.toFixed(2)}
+    Payment Method: ${data.paymentMethod}
+    Prescription ID: ${data.prescriptionId}
+    Discount Details: ${data.discountDetails}
+    Date: ${data.saleDate}`);
+            } else {
+                alert("No such sale record!");
             }
         }
 
         /* ------------------------- Customer Management (CRM) ---------------------- */
 
+        // Customers Data Structure
+        window.customersData = {};
+
         // Add Customer
         const addCustomerForm = document.getElementById('addCustomerForm');
         addCustomerForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const customerName = document.getElementById('customerName').value;
-            const customerEmail = document.getElementById('customerEmail').value;
-            const customerPhone = document.getElementById('customerPhone').value;
-            const prescriptionHistory = document.getElementById('customerPrescription').value || "N/A";
+            const customerName = document.getElementById('customerName').value.trim();
+            const customerEmail = document.getElementById('customerEmail').value.trim();
+            const customerPhone = document.getElementById('customerPhone').value.trim();
+            const prescriptionHistory = document.getElementById('customerPrescription').value.trim() || "N/A";
 
-            db.collection('customers').add({
+            const id = 'cust_' + new Date().getTime();
+
+            window.customersData[id] = {
                 customerName,
                 customerEmail,
                 customerPhone,
                 prescriptionHistory,
                 loyaltyPoints: 0,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            })
-            .then(() => {
-                addCustomerForm.reset();
-                document.getElementById('crmForm').style.display = 'none';
-                showNotification("Customer added successfully!");
-            })
-            .catch(error => {
-                console.error("Error adding customer: ", error);
-                showNotification("Error adding customer.", true);
-            });
+                createdAt: new Date().toISOString()
+            };
+
+            addCustomerForm.reset();
+            document.getElementById('crmForm').style.display = 'none';
+            showNotification("Customer added successfully!");
+            populateCustomerTable();
+            saveDataToDrive();
         });
 
-        // Real-time Listener for Customers
-        const crmTableBody = document.getElementById('crmTableBody');
-        db.collection('customers').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        // Populate Customer Table
+        function populateCustomerTable() {
+            const crmTableBody = document.getElementById('crmTableBody');
             crmTableBody.innerHTML = '';
-            snapshot.forEach(doc => {
-                const data = doc.data();
+            for (const id in window.customersData) {
+                const data = window.customersData[id];
                 const row = document.createElement('tr');
 
                 row.innerHTML = `
-                    <td>${doc.id}</td>
+                    <td>${id}</td>
                     <td>${data.customerName}</td>
                     <td>${data.customerEmail}</td>
                     <td>${data.customerPhone}</td>
                     <td>${data.prescriptionHistory}</td>
                     <td>
-                        <button onclick="viewCustomer('${doc.id}')">View</button>
-                        <button onclick="updateLoyalty('${doc.id}', ${data.loyaltyPoints})">Update Loyalty</button>
-                        <button onclick="deleteCustomer('${doc.id}')">Delete</button>
+                        <button onclick="viewCustomer('${id}')">View</button>
+                        <button onclick="updateLoyalty('${id}')">Update Loyalty</button>
+                        <button onclick="deleteCustomer('${id}')">Delete</button>
                     </td>
                 `;
                 crmTableBody.appendChild(row);
-            });
-        });
+            }
+        }
 
         // View Customer Details
         function viewCustomer(id) {
-            db.collection('customers').doc(id).get()
-            .then(doc => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    alert(`Customer Details:
-ID: ${doc.id}
-Name: ${data.customerName}
-Email: ${data.customerEmail}
-Phone: ${data.customerPhone}
-Prescription History: ${data.prescriptionHistory}
-Loyalty Points: ${data.loyaltyPoints}`);
-                } else {
-                    alert("No such customer record!");
-                }
-            })
-            .catch(error => {
-                console.error("Error fetching customer: ", error);
-            });
+            const data = window.customersData[id];
+            if(data){
+                alert(`Customer Details:
+    ID: ${id}
+    Name: ${data.customerName}
+    Email: ${data.customerEmail}
+    Phone: ${data.customerPhone}
+    Prescription History: ${data.prescriptionHistory}
+    Loyalty Points: ${data.loyaltyPoints}`);
+            } else {
+                alert("No such customer record!");
+            }
         }
 
         // Update Loyalty Points
-        function updateLoyalty(id, currentPoints) {
+        function updateLoyalty(id) {
             const additionalPoints = prompt("Enter additional loyalty points:", 0);
             if (additionalPoints === null || isNaN(additionalPoints) || additionalPoints < 0) {
                 showNotification("Invalid points entered.", true);
                 return;
             }
-            db.collection('customers').doc(id).update({
-                loyaltyPoints: currentPoints + parseInt(additionalPoints)
-            })
-            .then(() => {
-                showNotification("Loyalty points updated successfully!");
-            })
-            .catch(error => {
-                console.error("Error updating loyalty points: ", error);
-                showNotification("Error updating loyalty points.", true);
-            });
+            window.customersData[id].loyaltyPoints += parseInt(additionalPoints);
+            showNotification("Loyalty points updated successfully!");
+            populateCustomerTable();
+            saveDataToDrive();
         }
 
         // Delete Customer
         function deleteCustomer(id) {
             if(confirm("Are you sure you want to delete this customer?")) {
-                db.collection('customers').doc(id).delete()
-                .then(() => {
-                    showNotification("Customer deleted successfully!");
-                })
-                .catch(error => {
-                    console.error("Error deleting customer: ", error);
-                    showNotification("Error deleting customer.", true);
-                });
+                delete window.customersData[id];
+                showNotification("Customer deleted successfully!");
+                populateCustomerTable();
+                saveDataToDrive();
             }
         }
 
         /* ---------------------- Purchase & Vendor Management ----------------------- */
 
+        // Purchase Data Structure
+        window.purchaseData = {};
+
         // Add Purchase Order
         const addPurchaseForm = document.getElementById('addPurchaseForm');
         addPurchaseForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const vendorName = document.getElementById('vendorName').value;
-            const purchaseMedicineName = document.getElementById('purchaseMedicineName').value;
+            const vendorName = document.getElementById('vendorName').value.trim();
+            const purchaseMedicineName = document.getElementById('purchaseMedicineName').value.trim();
             const purchaseQuantity = parseInt(document.getElementById('purchaseQuantity').value);
             const purchaseStatus = document.getElementById('purchaseStatus').value;
-            const purchaseDate = new Date().toISOString().split('T')[0];
+            const purchaseDate = new Date().toLocaleDateString();
 
-            db.collection('purchase').add({
+            const id = 'po_' + new Date().getTime();
+
+            window.purchaseData[id] = {
                 vendorName,
                 purchaseMedicineName,
                 purchaseQuantity,
                 purchaseStatus,
-                purchaseDate,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            })
-            .then(() => {
-                addPurchaseForm.reset();
-                document.getElementById('purchaseForm').style.display = 'none';
-                showNotification("Purchase order created successfully!");
-            })
-            .catch(error => {
-                console.error("Error adding purchase order: ", error);
-                showNotification("Error creating purchase order.", true);
-            });
+                purchaseDate
+            };
+
+            addPurchaseForm.reset();
+            document.getElementById('purchaseForm').style.display = 'none';
+            showNotification("Purchase order created successfully!");
+            populatePurchaseTable();
+            saveDataToDrive();
         });
 
-        // Real-time Listener for Purchase Orders
-        const purchaseTableBody = document.getElementById('purchaseTableBody');
-        db.collection('purchase').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        // Populate Purchase Table
+        function populatePurchaseTable() {
+            const purchaseTableBody = document.getElementById('purchaseTableBody');
             purchaseTableBody.innerHTML = '';
-            snapshot.forEach(doc => {
-                const data = doc.data();
+            for (const id in window.purchaseData) {
+                const data = window.purchaseData[id];
                 const row = document.createElement('tr');
 
                 row.innerHTML = `
-                    <td>${doc.id}</td>
+                    <td>${id}</td>
                     <td>${data.vendorName}</td>
                     <td>${data.purchaseMedicineName}</td>
                     <td>${data.purchaseQuantity}</td>
                     <td>${data.purchaseStatus}</td>
                     <td>${data.purchaseDate}</td>
                     <td>
-                        <button onclick="updatePurchaseStatus('${doc.id}', '${data.purchaseStatus}')">Update</button>
-                        <button onclick="deletePurchase('${doc.id}')">Delete</button>
+                        <button onclick="updatePurchaseStatus('${id}')">Update</button>
+                        <button onclick="deletePurchase('${id}')">Delete</button>
                     </td>
                 `;
                 purchaseTableBody.appendChild(row);
-            });
-        });
+            }
+        }
 
         // Update Purchase Status
-        function updatePurchaseStatus(id, currentStatus) {
+        function updatePurchaseStatus(id) {
+            const currentStatus = window.purchaseData[id].purchaseStatus;
             const newStatus = prompt("Enter new status (Pending, Completed, Cancelled):", currentStatus);
             if (newStatus === null || !["Pending", "Completed", "Cancelled"].includes(newStatus)) {
                 showNotification("Invalid status entered.", true);
                 return;
             }
-            db.collection('purchase').doc(id).update({
-                purchaseStatus: newStatus
-            })
-            .then(() => {
-                showNotification("Purchase status updated successfully!");
-                if(newStatus === "Completed") {
-                    // Optionally, add to inventory
-                    // Implement logic to auto-add purchased quantity to inventory
+            window.purchaseData[id].purchaseStatus = newStatus;
+            showNotification("Purchase status updated successfully!");
+            populatePurchaseTable();
+            saveDataToDrive();
+
+            // If Completed, update inventory
+            if(newStatus === "Completed"){
+                const medicineName = window.purchaseData[id].purchaseMedicineName;
+                const quantity = window.purchaseData[id].purchaseQuantity;
+                updateInventoryAfterPurchase(medicineName, quantity);
+            }
+        }
+
+        // Update Inventory After Purchase
+        function updateInventoryAfterPurchase(medicineName, quantityPurchased) {
+            for (const id in window.inventoryData) {
+                if(window.inventoryData[id].medicineName.toLowerCase() === medicineName.toLowerCase()){
+                    window.inventoryData[id].quantity += quantityPurchased;
+                    showNotification(`Inventory updated for ${medicineName}.`);
+                    populateInventoryTable();
+                    saveDataToDrive();
+                    break;
                 }
-            })
-            .catch(error => {
-                console.error("Error updating purchase status: ", error);
-                showNotification("Error updating purchase status.", true);
-            });
+            }
         }
 
         // Delete Purchase Order
         function deletePurchase(id) {
             if(confirm("Are you sure you want to delete this purchase order?")) {
-                db.collection('purchase').doc(id).delete()
-                .then(() => {
-                    showNotification("Purchase order deleted successfully!");
-                })
-                .catch(error => {
-                    console.error("Error deleting purchase order: ", error);
-                    showNotification("Error deleting purchase order.", true);
-                });
+                delete window.purchaseData[id];
+                showNotification("Purchase order deleted successfully!");
+                populatePurchaseTable();
+                saveDataToDrive();
             }
         }
 
-        /* ---------------------- Accounting & Finance Module ------------------------ */
+        /* ------------------------- Medicine Suggestions --------------------------- */
 
-        // Placeholder for Accounting & Finance functionalities
-        // Implement integration with sales data, GST/VAT calculations, financial reports, etc.
+        function suggestMedicines(inputElem) {
+            const query = inputElem.value.trim().toLowerCase();
+            const suggestionsBox = inputElem.nextElementSibling;
+            suggestionsBox.innerHTML = '';
 
-        /* ---------------------- Reporting & Analytics Module ------------------------ */
+            if(query.length === 0){
+                suggestionsBox.style.display = 'none';
+                return;
+            }
 
-        // Placeholder for Reporting & Analytics functionalities
-        // Integrate libraries like Chart.js for visual reports
-        // Fetch data from Firestore and display summaries and charts
+            let matches = [];
+            for (const id in window.inventoryData) {
+                const medicineName = window.inventoryData[id].medicineName.toLowerCase();
+                if(medicineName.startsWith(query)){
+                    matches.push(window.inventoryData[id].medicineName);
+                }
+            }
 
-        /* ---------------------- Regulatory Compliance Module ------------------------ */
-
-        // Placeholder for Regulatory Compliance functionalities
-        // Implement controlled substance tracking, e-prescription integration, etc.
-
-        /* ---------------------- Employee Management Module -------------------------- */
-
-        // Placeholder for Employee Management functionalities
-        // Implement role-based access, performance tracking, shift schedules, etc.
-
-        /* ------------------- Google Drive Integration ------------------------------ */
-
-        // Save Data to Google Drive
-        function saveDataToDrive() {
-            const data = {
-                sales: {},
-                inventory: {},
-                customers: {},
-                purchase: {}
-            };
-
-            // Fetch data from Firestore
-            db.collection('sales').get().then(snapshot => {
-                snapshot.forEach(doc => {
-                    data.sales[doc.id] = doc.data();
+            if(matches.length > 0){
+                matches.forEach(name => {
+                    const div = document.createElement('div');
+                    div.classList.add('suggestion-item');
+                    div.textContent = name;
+                    div.onclick = () => {
+                        inputElem.value = name;
+                        suggestionsBox.innerHTML = '';
+                        suggestionsBox.style.display = 'none';
+                    };
+                    suggestionsBox.appendChild(div);
                 });
-                return db.collection('inventory').get();
-            }).then(snapshot => {
-                snapshot.forEach(doc => {
-                    data.inventory[doc.id] = doc.data();
-                });
-                return db.collection('customers').get();
-            }).then(snapshot => {
-                snapshot.forEach(doc => {
-                    data.customers[doc.id] = doc.data();
-                });
-                return db.collection('purchase').get();
-            }).then(snapshot => {
-                snapshot.forEach(doc => {
-                    data.purchase[doc.id] = doc.data();
-                });
-                // Convert data to JSON string
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const metadata = {
-                    'name': 'pharmacy_erp_data.json',
-                    'mimeType': 'application/json'
+            } else {
+                const div = document.createElement('div');
+                div.classList.add('suggestion-item');
+                div.textContent = `Add new product "${inputElem.value.trim()}"`;
+                div.onclick = () => {
+                    inputElem.value = inputElem.value.trim();
+                    suggestionsBox.innerHTML = '';
+                    suggestionsBox.style.display = 'none';
+                    openAddProductModal(inputElem.value.trim());
                 };
+                suggestionsBox.appendChild(div);
+            }
 
-                // Create file on Drive
-                const accessToken = gapi.auth.getToken().access_token;
-                const form = new FormData();
-                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                form.append('file', blob);
-
-                fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-                    method: 'POST',
-                    headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-                    body: form,
-                }).then((res) => {
-                    return res.json();
-                }).then(function(val) {
-                    showNotification("Data saved to Google Drive successfully!");
-                    console.log("File ID: ", val.id);
-                }).catch(error => {
-                    console.error("Error uploading to Drive:", error);
-                    showNotification("Error saving data to Drive.", true);
-                });
-            }).catch(error => {
-                console.error("Error fetching data for Drive upload:", error);
-                showNotification("Error preparing data for Drive upload.", true);
-            });
+            suggestionsBox.style.display = 'block';
         }
 
-        // Load Data from Google Drive
-        function loadDataFromDrive() {
-            const accessToken = gapi.auth.getToken().access_token;
-            // Search for the file by name
-            fetch('https://www.googleapis.com/drive/v3/files?q=name="pharmacy_erp_data.json"', {
-                headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.files.length > 0){
-                    const fileId = data.files[0].id;
-                    // Download the file content
-                    fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-                        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-                    })
-                    .then(response => response.json())
-                    .then(jsonData => {
-                        // Parse and load data into Firestore
-                        // Clear existing data (optional)
-                        clearFirestoreData().then(() => {
-                            // Add sales data
-                            for (const saleId in jsonData.sales) {
-                                db.collection('sales').doc(saleId).set(jsonData.sales[saleId]);
-                            }
-                            // Add inventory data
-                            for (const inventoryId in jsonData.inventory) {
-                                db.collection('inventory').doc(inventoryId).set(jsonData.inventory[inventoryId]);
-                            }
-                            // Add customer data
-                            for (const customerId in jsonData.customers) {
-                                db.collection('customers').doc(customerId).set(jsonData.customers[customerId]);
-                            }
-                            // Add purchase data
-                            for (const purchaseId in jsonData.purchase) {
-                                db.collection('purchase').doc(purchaseId).set(jsonData.purchase[purchaseId]);
-                            }
-                            showNotification("Data loaded from Google Drive successfully!");
-                        });
-                    })
-                    .catch(error => {
-                        console.error("Error downloading file from Drive:", error);
-                        showNotification("Error loading data from Drive.", true);
-                    });
+        // Open Add Product Modal
+        function openAddProductModal(medicineName = "") {
+            document.getElementById('addProductModal').style.display = 'block';
+            document.getElementById('newMedicineName').value = medicineName;
+        }
+
+        // Close Modal
+        function closeModal() {
+            document.getElementById('addProductModal').style.display = 'none';
+            document.getElementById('addNewProductForm').reset();
+        }
+
+        // Add New Product from Modal
+        const addNewProductForm = document.getElementById('addNewProductForm');
+        addNewProductForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const medicineName = document.getElementById('newMedicineName').value.trim();
+            const quantity = parseInt(document.getElementById('newQuantity').value);
+            const tabletsPerStrip = parseInt(document.getElementById('newTabletsPerStrip').value);
+            const batchNumber = document.getElementById('newBatchNumber').value.trim();
+            const expiryDate = document.getElementById('newExpiryDate').value;
+            const therapeuticClass = document.getElementById('newTherapeuticClass').value;
+
+            const id = 'inv_' + new Date().getTime();
+
+            window.inventoryData[id] = {
+                medicineName,
+                quantity,
+                tabletsPerStrip,
+                batchNumber,
+                expiryDate,
+                therapeuticClass
+            };
+
+            showNotification("New product added successfully!");
+            populateInventoryTable();
+            closeModal();
+            saveDataToDrive();
+        });
+
+        /* ------------------- Google Drive Data Handling ---------------------------- */
+
+        // Save all data to Drive
+        async function saveAllData() {
+            const data = {
+                sales: window.salesData || {},
+                inventory: window.inventoryData || {},
+                customers: window.customersData || {},
+                purchase: window.purchaseData || {}
+            };
+
+            try {
+                const searchResponse = await searchFile('pharmacy_erp_data.json');
+                if (searchResponse.result.files.length > 0) {
+                    // File exists, update it
+                    const fileId = searchResponse.result.files[0].id;
+                    await updateFile(fileId, data);
+                    showNotification("Data saved to Google Drive successfully!");
+                } else {
+                    // File does not exist, create it
+                    await createFile('pharmacy_erp_data.json', data);
+                    showNotification("Data saved to Google Drive successfully!");
+                }
+            } catch (error) {
+                console.error("Error saving data to Drive:", error);
+                showNotification("Error saving data to Drive.", true);
+            }
+        }
+
+        // Load data from Drive on login
+        async function loadDataFromDriveOnLogin() {
+            try {
+                const searchResponse = await searchFile('pharmacy_erp_data.json');
+                if (searchResponse.result.files.length > 0) {
+                    const fileId = searchResponse.result.files[0].id;
+                    const contentResponse = await getFileContent(fileId);
+                    const data = JSON.parse(atob(contentResponse.body));
+
+                    // Load Inventory Data
+                    window.inventoryData = data.inventory || {};
+                    populateInventoryTable();
+
+                    // Load Sales Data
+                    window.salesData = data.sales || {};
+                    populateSalesTable();
+
+                    // Load Customer Data
+                    window.customersData = data.customers || {};
+                    populateCustomerTable();
+
+                    // Load Purchase Data
+                    window.purchaseData = data.purchase || {};
+                    populatePurchaseTable();
+
+                    showNotification("Data loaded from Google Drive successfully!");
                 } else {
                     showNotification("No backup file found on Drive.", true);
                 }
-            })
-            .catch(error => {
-                console.error("Error searching for file on Drive:", error);
-                showNotification("Error searching for backup file on Drive.", true);
-            });
-        }
-
-        // Clear Firestore Data (Use with caution)
-        async function clearFirestoreData() {
-            const collections = ['sales', 'inventory', 'customers', 'purchase'];
-            for (const collection of collections) {
-                const querySnapshot = await db.collection(collection).get();
-                querySnapshot.forEach(doc => {
-                    db.collection(collection).doc(doc.id).delete().catch(error => {
-                        console.error(`Error deleting document ${doc.id} from ${collection}:`, error);
-                    });
-                });
+            } catch (error) {
+                console.error("Error loading data from Drive:", error);
+                showNotification("Error loading data from Drive.", true);
             }
         }
 
-        /* ----------------------- Google Drive Buttons ----------------------------- */
+        // Overriding saveDataToDrive to save all data
+        function saveDataToDrive() {
+            saveAllData();
+        }
 
-        // Add buttons to save and load data from Drive
-        // You can place these buttons in an appropriate module, e.g., Accounting & Finance or Reporting
+        // Load data from Drive after sign-in
+        function loadDataFromDrive() {
+            loadDataFromDriveOnLogin();
+        }
 
-        // For demonstration, we'll add them to the Accounting & Finance module
-        const accountingModule = document.getElementById('accounting');
-        const driveButtonsHTML = `
-            <button onclick="saveDataToDrive()">Backup Data to Google Drive</button>
-            <button onclick="loadDataFromDrive()">Restore Data from Google Drive</button>
-        `;
-        accountingModule.insertAdjacentHTML('beforeend', driveButtonsHTML);
+        /* ------------------- Popup Modal Handling -------------------------- */
+
+        // Close modal when clicking outside of the modal content
+        window.onclick = function(event) {
+            const modal = document.getElementById('addProductModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+                document.getElementById('addNewProductForm').reset();
+            }
+        }
 
     </script>
 
