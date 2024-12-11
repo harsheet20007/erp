@@ -28,6 +28,7 @@
             flex-shrink: 0;
             overflow-y: auto;
             display: none; /* Hidden by default, shown after login */
+            transition: width 0.3s;
         }
 
         .sidebar h2 {
@@ -55,6 +56,7 @@
             overflow-y: auto;
             background-color: #ecf0f1;
             display: none; /* Hidden by default, shown after login */
+            position: relative;
         }
 
         .module {
@@ -139,10 +141,44 @@
             border-radius: 5px;
             display: none;
             z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .notification.error {
             background-color: #e74c3c;
+        }
+        
+        /* Loading Spinner */
+        .spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            z-index: 1500;
+        }
+
+        .spinner div {
+            width: 18px;
+            height: 18px;
+            margin: 2px;
+            background: #2c3e50;
+            border-radius: 100%;
+            display: inline-block;
+            animation: bouncedelay 1.4s infinite ease-in-out both;
+        }
+
+        .spinner .bounce1 {
+            animation-delay: -0.32s;
+        }
+
+        .spinner .bounce2 {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bouncedelay {
+            0%, 80%, 100% { transform: scale(0) }
+            40% { transform: scale(1.0) }
         }
 
         /* Login Screen */
@@ -169,6 +205,7 @@
             font-size: 16px;
             display: flex;
             align-items: center;
+            transition: background 0.3s;
         }
 
         .login-button img {
@@ -257,7 +294,20 @@
     </style>
 </head>
 <body>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://apis.google.com https://www.gstatic.com;">
+<meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' https://apis.google.com https://www.gstatic.com; 
+    frame-src 'self' https://www.gstatic.com https://apis.google.com;
+    img-src 'self' https://developers.google.com https://www.gstatic.com; 
+    style-src 'self' 'unsafe-inline';
+">
+
+    <!-- Loading Spinner -->
+    <div class="spinner" id="loadingSpinner">
+        <div class="bounce1"></div>
+        <div class="bounce2"></div>
+        <div class="bounce3"></div>
+    </div>
 
     <!-- Login Screen -->
     <div id="loginScreen" class="login-screen">
@@ -275,68 +325,6 @@
         <a onclick="showModule('inventory')">Inventory Management</a>
         <a onclick="showModule('crm')">Customer Management (CRM)</a>
         <a onclick="showModule('purchase')">Purchase & Vendor Management</a>
-        <script>
-            document.addEventListener('DOMContentLoaded', () => {
-                // Check if gapi is loaded before initializing the client
-                if (typeof gapi !== 'undefined') {
-                    gapi.load('client:auth2', initClient);
-                } else {
-                    console.error("Google API client library not loaded.");
-                }
-            });
-
-            function initClient() {
-                gapi.client.init({
-                    apiKey: API_KEY,
-                    clientId: CLIENT_ID,
-                    scope: SCOPES
-                }).then(() => {
-                    console.log("Google API Client Initialized.");
-                }, (error) => {
-                    console.error("Error initializing Google API client:", error);
-                    showNotification("Error initializing Google API client.", true);
-                });
-            }
-
-            async function loadDataFromDriveOnLogin() {
-                try {
-                    if (typeof gapi !== 'undefined' && gapi.client.drive) {
-                        const searchResponse = await searchFile('pharmacy_erp_data.json');
-                        if (searchResponse.result.files.length > 0) {
-                            const fileId = searchResponse.result.files[0].id;
-                            const contentResponse = await getFileContent(fileId);
-                            const data = JSON.parse(atob(contentResponse.body));
-
-                            // Load Inventory Data
-                            window.inventoryData = data.inventory || {};
-                            populateInventoryTable();
-
-                            // Load Sales Data
-                            window.salesData = data.sales || {};
-                            populateSalesTable();
-
-                            // Load Customer Data
-                            window.customersData = data.customers || {};
-                            populateCustomerTable();
-
-                            // Load Purchase Data
-                            window.purchaseData = data.purchase || {};
-                            populatePurchaseTable();
-
-                            showNotification("Data loaded from Google Drive successfully!");
-                        } else {
-                            showNotification("No backup file found on Drive.", true);
-                        }
-                    } else {
-                        console.error("Google API client library not loaded or Drive API not initialized.");
-                        showNotification("Error loading data from Drive.", true);
-                    }
-                } catch (error) {
-                    console.error("Error loading data from Drive:", error);
-                    showNotification("Error loading data from Drive.", true);
-                }
-            }
-        </script>
         <a onclick="showModule('accounting')">Accounting & Finance</a>
         <a onclick="showModule('reporting')">Reporting & Analytics</a>
         <a onclick="showModule('compliance')">Regulatory Compliance</a>
@@ -478,6 +466,7 @@
                         <th>Email</th>
                         <th>Phone</th>
                         <th>Prescription History</th>
+                        <th>Loyalty Points</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -599,7 +588,6 @@
   messagingSenderId: "977038537918",
   appId: "1:977038537918:web:46761c2376a03978851aef",
   measurementId: "G-ZE4HSES1R6"
-        
         };
 
         // Initialize Firebase
@@ -607,8 +595,8 @@
         const auth = firebase.auth();
 
         // Google API Client ID and API Key
-        const CLIENT_ID = '678872323392-9mfrt7ngfbfme0nhgc32uqljqpctvjnm.apps.googleusercontent.com';
-        const API_KEY = 'AIzaSyC3m2Q47SiDG4fM6YRWSzIP-vG3WVlnaZE';
+        const CLIENT_ID = '977038537918-7k4g6gql6148mjb3saq0m04l6gk3hmas.apps.googleusercontent.com';
+        const API_KEY = 'AIzaSyBJLp1AAqdEVxs-eZBUPPgNfK-SjOuLpz0';
         const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
         // Notification Function
@@ -622,6 +610,15 @@
             }, 3000);
         }
 
+        // Loading Spinner Control
+        function showSpinner() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+        }
+
+        function hideSpinner() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+
         // Initialize Google API Client
         function initClient() {
             gapi.client.init({
@@ -630,7 +627,10 @@
                 scope: SCOPES
             }).then(() => {
                 console.log("Google API Client Initialized.");
-            }, (error) => {
+                return gapi.client.load('drive', 'v3'); // Load Drive API
+            }).then(() => {
+                console.log("Google Drive API loaded.");
+            }).catch((error) => {
                 console.error("Error initializing Google API client:", error);
                 showNotification("Error initializing Google API client.", true);
             });
@@ -641,10 +641,12 @@
         // Sign In with Google
         const googleSignInButton = document.getElementById('googleSignInButton');
         googleSignInButton.addEventListener('click', () => {
+            showSpinner();
             const provider = new firebase.auth.GoogleAuthProvider();
             provider.addScope('https://www.googleapis.com/auth/drive.file');
             firebase.auth().signInWithPopup(provider)
                 .then((result) => {
+                    hideSpinner();
                     // The signed-in user info.
                     const user = result.user;
                     // Get Google access token
@@ -663,6 +665,7 @@
                     // Load existing data from Google Drive
                     loadDataFromDrive();
                 }).catch((error) => {
+                    hideSpinner();
                     console.error("Error during sign in:", error);
                     showNotification("Error during sign in.", true);
                 });
@@ -670,13 +673,16 @@
 
         // Sign Out Function
         function signOut() {
+            showSpinner();
             firebase.auth().signOut().then(() => {
                 // Sign-out successful.
                 document.getElementById('loginScreen').style.display = 'flex';
                 document.getElementById('sidebar').style.display = 'none';
                 document.getElementById('mainContent').style.display = 'none';
                 showNotification("Signed out successfully.");
+                hideSpinner();
             }).catch((error) => {
+                hideSpinner();
                 console.error("Error during sign out:", error);
                 showNotification("Error during sign out.", true);
             });
@@ -717,7 +723,6 @@
                 'mimeType': 'application/json'
             };
 
-            const base64Data = btoa(JSON.stringify(content));
             const multipartRequestBody =
                 delimiter +
                 'Content-Type: application/json\r\n\r\n' +
@@ -787,6 +792,7 @@
 
         // Save Data to Google Drive
         async function saveDataToDrive() {
+            showSpinner();
             const data = {
                 sales: window.salesData || {},
                 inventory: window.inventoryData || {},
@@ -810,16 +816,18 @@
                 console.error("Error saving data to Drive:", error);
                 showNotification("Error saving data to Drive.", true);
             }
+            hideSpinner();
         }
 
         // Load Data from Google Drive
         async function loadDataFromDrive() {
+            showSpinner();
             try {
                 const searchResponse = await searchFile('pharmacy_erp_data.json');
                 if (searchResponse.result.files.length > 0) {
                     const fileId = searchResponse.result.files[0].id;
                     const contentResponse = await getFileContent(fileId);
-                    const data = contentResponse.result;
+                    const data = JSON.parse(contentResponse.body);
 
                     // Load Inventory Data
                     window.inventoryData = data.inventory || {};
@@ -845,6 +853,7 @@
                 console.error("Error loading data from Drive:", error);
                 showNotification("Error loading data from Drive.", true);
             }
+            hideSpinner();
         }
 
         /* ------------------------- Inventory Management ---------------------------- */
@@ -1084,6 +1093,34 @@
             }
         }
 
+        // Update Quantity and Recalculate Price and Tax
+        function updateQuantity(element) {
+            const row = element.closest('tr');
+            const stripQty = parseInt(row.querySelector('.strip-qty').value) || 0;
+            const tabletQty = parseInt(row.querySelector('.tablet-qty').value) || 0;
+            const medicineName = row.querySelector('.medicine-name').value.trim();
+            
+            // Fetch tablets per strip from inventory
+            const tabletsPerStrip = getTabletsPerStrip(medicineName);
+            const totalQty = (stripQty * tabletsPerStrip) + tabletQty;
+            row.querySelector('.total-qty').textContent = totalQty;
+            
+            // Calculate total price and tax
+            const unitPrice = getUnitPrice(medicineName);
+            const totalPrice = totalQty * unitPrice;
+            const tax = totalPrice * 0.18; // Assuming 18% tax
+            
+            row.querySelector('.total-price').textContent = totalPrice.toFixed(2);
+            row.querySelector('.tax').textContent = tax.toFixed(2);
+        }
+
+        function updateTaxAndPrice(element) {
+            const row = element.closest('tr');
+            const totalPrice = parseFloat(row.querySelector('.total-price').textContent) || 0;
+            const tax = totalPrice * 0.18; // Assuming 18% tax
+            row.querySelector('.tax').textContent = tax.toFixed(2);
+        }
+
         /* ------------------------- Customer Management (CRM) ---------------------- */
 
         // Customers Data Structure
@@ -1130,6 +1167,7 @@
                     <td>${data.customerEmail}</td>
                     <td>${data.customerPhone}</td>
                     <td>${data.prescriptionHistory}</td>
+                    <td>${data.loyaltyPoints}</td>
                     <td>
                         <button onclick="viewCustomer('${id}')">View</button>
                         <button onclick="updateLoyalty('${id}')">Update Loyalty</button>
@@ -1145,12 +1183,13 @@
             const data = window.customersData[id];
             if(data){
                 alert(`Customer Details:
-    ID: ${id}
-    Name: ${data.customerName}
-    Email: ${data.customerEmail}
-    Phone: ${data.customerPhone}
-    Prescription History: ${data.prescriptionHistory}
-    Loyalty Points: ${data.loyaltyPoints}`);
+ID: ${id}
+Name: ${data.customerName}
+Email: ${data.customerEmail}
+Phone: ${data.customerPhone}
+Prescription History: ${data.prescriptionHistory}
+Loyalty Points: ${data.loyaltyPoints}
+Member Since: ${new Date(data.createdAt).toLocaleDateString()}`);
             } else {
                 alert("No such customer record!");
             }
@@ -1384,11 +1423,11 @@
                     // File exists, update it
                     const fileId = searchResponse.result.files[0].id;
                     await updateFile(fileId, data);
-                    showNotification("Data saved to Google Drive successfully!");
+                    showNotification("Data backed up to Google Drive successfully!");
                 } else {
                     // File does not exist, create it
                     await createFile('pharmacy_erp_data.json', data);
-                    showNotification("Data saved to Google Drive successfully!");
+                    showNotification("Data backed up to Google Drive successfully!");
                 }
             } catch (error) {
                 console.error("Error saving data to Drive:", error);
@@ -1403,7 +1442,7 @@
                 if (searchResponse.result.files.length > 0) {
                     const fileId = searchResponse.result.files[0].id;
                     const contentResponse = await getFileContent(fileId);
-                    const data = JSON.parse(atob(contentResponse.body));
+                    const data = JSON.parse(contentResponse.body); // Ensure correct parsing
 
                     // Load Inventory Data
                     window.inventoryData = data.inventory || {};
@@ -1447,8 +1486,7 @@
         window.onclick = function(event) {
             const modal = document.getElementById('addProductModal');
             if (event.target == modal) {
-                modal.style.display = "none";
-                document.getElementById('addNewProductForm').reset();
+                closeModal();
             }
         }
 
